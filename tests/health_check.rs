@@ -1,8 +1,64 @@
-use emailnewsletter :: main;
+// //! tests/health_check.rs
+// // `tokio::test` is the testing equivalent of `tokio::main`.
+// // It also spares you from having to specify the `#[test]` attribute.
+// //
+// // You can inspect what code gets generated using
+// // `cargo expand --test health_check` (<- name of the test file)
+// #[tokio::test]
+// async fn health_check_works() {
+// // Arrange
+// spawn_app().await.expect("Failed to spawn our app.");
+// // We need to bring in `reqwest`
+// // to perform HTTP requests against our application.
+// let client = reqwest::Client::new();
+// // Act
+// let response = client
+// .get("http://127.0.0.1:8000/health_check")
+// .send()
+// .await
+// .expect("Failed to execute request.");
+// // Assert
+// assert!(response.status().is_success());
+// assert_eq!(Some(0), response.content_length());
+// }
+// // Launch our application in the background ~somehow~
+// async fn spawn_app() -> std::io::Result<()> {
+// todo!()
+// }
+// async fn spawn_app() -> std::io::Result<()> {
+// zero2prod::run().await
+// }
 
-#[test]
-fn dummy_test(){
-    fn dummy_test(){
-        main()
-    }
+
+//! tests/health_check.rs
+//! Integration test for the health check endpoint.
+
+use std::net::TcpListener;
+
+#[tokio::test]
+async fn health_check_works() {
+    // Arrange: Start the app and get its address
+    let address = spawn_app().await.expect("Failed to spawn app.");
+    let client = reqwest::Client::new();
+
+    // Act: Send a GET request to /health_check
+    let response = client
+        .get(&format!("{}/health_check", &address))
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    // Assert: Should return 200 and body "OK"
+    assert!(response.status().is_success());
+    assert_eq!(Some(2), response.content_length());
+}
+
+/// Launch our application on a random port and return its address.
+async fn spawn_app() -> std::io::Result<String> {
+    // Bind to a random available port
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let port = listener.local_addr()?.port();
+    let server = emailnewsletter::run(listener)?; // Assuming `run` takes TcpListener
+    tokio::spawn(server);
+    Ok(format!("http://127.0.0.1:{}", port))
 }
